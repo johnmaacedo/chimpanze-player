@@ -1,0 +1,74 @@
+{
+  "name": "chimpanze-player",
+  "productName": "Chimpanzé Player",
+  "version": "1.4.0",
+  "description": "Player de mídia local com interface estilo streaming, GPU, IA e torrent integrado.",
+  "main": "src/main/main.js",
+  "author": "João Victor de Macedo",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/run-tests.js",
+    "dist": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "^2.20.1"
+  },
+  "build": {
+    "appId": "com.joaovictor.chimpanzeplayer",
+    "productName": "Chimpanzé Player",
+    "executableName": "ChimpanzePlayer",
+    "copyright": "© 2026 João Victor de Macedo",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": ".",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/@ghostery/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Chimpanzé Player",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "Chimpanze-Player-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    }
+  }
+}

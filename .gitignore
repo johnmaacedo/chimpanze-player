@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+out/
+*.log
+.env
+# binários grandes (copiar da instalação, ver README)
+resources/mpv/
+resources/vs/python/
+resources/vs/rife/
+resources/vs/rtx/*.dll
+resources/vs/rtx/*.exe
+resources/vs/rtx/models/
+resources/elevate.exe
