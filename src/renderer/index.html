@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' chimp-img: data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' chimp-img:; font-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chimpanzé Player</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand" data-nav="home">
+      <img src="assets/logo.svg" alt="" class="brand-logo">
+      <span class="brand-name">Chimpanzé<span class="brand-sub">Player</span></span>
+      <span class="alpha-tag" title="Versão em desenvolvimento">Alpha</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-nav="home" class="tab active">Início</button>
+      <button data-nav="series" class="tab">Séries</button>
+      <button data-nav="anime" class="tab">Animes</button>
+      <button data-nav="movie" class="tab">Filmes</button>
+      <button data-nav="downloads" class="tab">Downloads <span class="tab-badge" id="dl-badge" hidden></span></button>
+      <button data-nav="sources" class="tab">Fontes</button>
+    </nav>
+    <div class="top-actions">
+      <div class="search-box" id="search-box">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+        <input id="search-input" type="search" placeholder="Buscar na biblioteca" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="scan-pill" id="rtx-pill" hidden title="Preparando o motor de 60 FPS (só na primeira vez)" style="cursor:pointer"><span class="spinner"></span><span id="rtx-text">Preparando 60 FPS…</span></div>
+      <div class="scan-pill" id="scan-pill" hidden><span class="spinner"></span><span id="scan-text">Atualizando…</span></div>
+      <button class="icon-btn" data-nav="settings" title="Configurações">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M12 8.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7Zm0 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-1.7-8.5h3.4l.55 2.6c.6.22 1.15.54 1.65.93l2.53-.83 1.7 2.94-1.98 1.78a6.9 6.9 0 0 1 0 1.9l1.98 1.78-1.7 2.94-2.53-.83c-.5.39-1.05.71-1.65.93L13.7 22h-3.4l-.55-2.6a7 7 0 0 1-1.65-.93l-2.53.83-1.7-2.94 1.98-1.78a6.9 6.9 0 0 1 0-1.9L3.87 10.9l1.7-2.94 2.53.83c.5-.39 1.05-.71 1.65-.93L10.3 2Z"/></svg>
+      </button>
+      <div class="win-controls">
+        <button class="win-btn" data-win="minimize" title="Minimizar"><svg viewBox="0 0 12 12"><rect x="2" y="5.5" width="8" height="1" fill="currentColor"/></svg></button>
+        <button class="win-btn" data-win="maximize" title="Maximizar"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor"/></svg></button>
+        <button class="win-btn close" data-win="close" title="Fechar"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="view"></main>
+  <div id="detail-layer" hidden></div>
+  <div id="modal-layer" hidden></div>
+  <div id="toasts"></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/home.js"></script>
+  <script src="js/detail.js"></script>
+  <script src="js/downloads.js"></script>
+  <script src="js/sources.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

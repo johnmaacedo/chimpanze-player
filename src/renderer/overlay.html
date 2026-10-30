@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' chimp-img: data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Chimpanzé Player</title>
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body class="show-ui">
+  <div id="hit"></div>
+
+  <div id="top" class="chrome">
+    <button class="cbtn" id="btn-back" title="Voltar à biblioteca (Esc)"><svg viewBox="0 0 24 24"><path d="M15.4 4.6 8 12l7.4 7.4-1.4 1.4L5.2 12 14 3.2l1.4 1.4Z"/></svg></button>
+    <div class="titles">
+      <div id="t-title"></div>
+      <div id="t-sub"></div>
+    </div>
+    <div class="spacer"></div>
+    <div id="badges"></div>
+    <div class="wctl" id="wctl">
+      <button class="wbtn" data-w="minimize" title="Minimizar"><svg viewBox="0 0 12 12"><rect x="2" y="5.5" width="8" height="1" fill="currentColor"/></svg></button>
+      <button class="wbtn" data-w="maximize" title="Maximizar"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor"/></svg></button>
+      <button class="wbtn close" data-w="close" title="Fechar"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.1"/></svg></button>
+    </div>
+  </div>
+
+  <div id="center">
+    <div id="buffer" hidden><div class="ring"></div><div id="buffer-text">Carregando…</div></div>
+    <div id="flash"></div>
+  </div>
+
+  <button id="skip-next" class="skip-next" hidden>Próximo episódio <svg viewBox="0 0 24 24"><path d="m8.6 19.4 7.4-7.4-7.4-7.4L10 3.2 18.8 12 10 20.8l-1.4-1.4Z"/></svg></button>
+
+  <div id="bottom" class="chrome">
+    <div id="seek">
+      <div id="seek-track">
+        <div id="seek-buffer"></div>
+        <div id="seek-chapters"></div>
+        <div id="seek-played"></div>
+        <div id="seek-thumb"></div>
+      </div>
+      <div id="seek-tip"></div>
+    </div>
+    <div class="controls">
+      <div class="left">
+        <button class="cbtn big" id="btn-play" title="Reproduzir / pausar (Espaço)"></button>
+        <button class="cbtn" id="btn-rew" title="Voltar"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg><span class="skipnum" id="rew-n">10</span></button>
+        <button class="cbtn" id="btn-fwd" title="Avançar"><svg viewBox="0 0 24 24" style="transform:scaleX(-1)"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/></svg><span class="skipnum" id="fwd-n">10</span></button>
+        <div class="vol">
+          <button class="cbtn" id="btn-mute" title="Mudo (M)"></button>
+          <input type="range" id="vol" min="0" max="150" step="1" value="100">
+          <span id="vol-n">100</span>
+        </div>
+        <div id="time"><span id="t-cur">0:00</span><span class="sep">/</span><span id="t-dur">0:00</span></div>
+      </div>
+      <div class="right">
+        <button class="cbtn" id="btn-next" title="Próximo episódio (N)" hidden><svg viewBox="0 0 24 24"><path d="M5 5.5v13a1 1 0 0 0 1.55.83L15 13.7V18h2V6h-2v4.3L6.55 4.67A1 1 0 0 0 5 5.5Z"/></svg></button>
+        <button class="cbtn" id="btn-eps" title="Episódios" hidden><svg viewBox="0 0 24 24"><path d="M4 5h16v2H4V5Zm0 6h16v2H4v-2Zm0 6h10v2H4v-2Z"/></svg></button>
+        <button class="cbtn" id="btn-tracks" title="Áudio e legendas"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3V5Zm2 2v10h14V7H5Zm2 3h4v2H7v-2Zm6 0h4v2h-4v-2Zm-6 4h7v2H7v-2Zm9 0h1v2h-1v-2Z"/></svg></button>
+        <button class="cbtn" id="btn-speed" title="Velocidade"><span id="speed-n">1×</span></button>
+        <button class="cbtn accent" id="btn-image" title="Imagem e IA (E)"><svg viewBox="0 0 24 24"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2Zm7 12 .9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14Z"/></svg></button>
+        <button class="cbtn" id="btn-stats" title="Estatísticas (I)"><svg viewBox="0 0 24 24"><path d="M4 19h16v2H4v-2Zm1-8h3v6H5v-6Zm5-6h3v12h-3V5Zm5 3h3v9h-3V8Z"/></svg></button>
+        <button class="cbtn" id="btn-fs" title="Tela cheia (F)"></button>
+      </div>
+    </div>
+  </div>
+
+  <aside id="panel" class="panel" hidden>
+    <div class="panel-head"><h3 id="panel-title"></h3><button class="cbtn sm" id="panel-close" title="Fechar"><svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/></svg></button></div>
+    <div class="panel-body" id="panel-body"></div>
+  </aside>
+
+  <div id="stats" hidden></div>
+  <div id="endcard" hidden></div>
+  <div id="toasts"></div>
+  <div id="grip" title="Redimensionar"></div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>
