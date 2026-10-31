@@ -146,6 +146,7 @@ async function startPlayback(req) {
     rtx,
     iconPath,
     icoPath,
+    notice: (text, level) => send('notice', { text, level }),
     onClosed: (s) => {
       if (player === s) player = null;
       progressStore.flush();

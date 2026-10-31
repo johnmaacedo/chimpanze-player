@@ -9,6 +9,7 @@ const { MpvIpc } = require('./mpv-ipc');
 const { IS_WIN, mpvBinary, userDir, ensureDir, vsRuntime, asciiWorkDir } = require('./paths');
 const VP = require('./video-profile');
 const { MODELS: RTX_MODELS, processDims } = require('./rtx');
+const W = require('./win32');
 
 const OBSERVED = [
   'pause', 'time-pos', 'duration', 'volume', 'mute', 'track-list', 'eof-reached', 'idle-active',
@@ -16,7 +17,11 @@ const OBSERVED = [
   'estimated-vf-fps', 'display-fps', 'container-fps', 'hwdec-current', 'video-codec', 'frame-drop-count',
   'vo-delayed-frame-count', 'osd-dimensions', 'media-title', 'file-format', 'video-bitrate', 'audio-codec-name',
   'sub-delay', 'audio-delay', 'chapter-list', 'width', 'height', 'vo-configured', 'focused', 'video-dec-params',
+  'window-minimized',
 ];
+// Propriedades que mudam a cada quadro: vão para a interface agrupadas (no máx. ~10x por segundo).
+const THROTTLED = new Set(['time-pos', 'demuxer-cache-state', 'estimated-vf-fps', 'frame-drop-count', 'vo-delayed-frame-count', 'display-fps']);
+const THROTTLE_MS = 100;
 
 class PlayerSession {
   /**
@@ -42,6 +47,9 @@ class PlayerSession {
     this.saveTimer = null;
     this.psbId = null;
     this.endHandled = false;
+    this.videoHwnd = null; // janela do mpv ligada à dos controles (Windows)
+    this._propQueue = new Map();
+    this._propTimer = null;
     this.logFile = path.join(ensureDir(userDir('logs')), 'mpv.log');
   }
 
@@ -49,7 +57,9 @@ class PlayerSession {
   // Arquitetura: o mpv desenha o vídeo na própria janela nativa (sem bordas, fora da barra de tarefas)
   // e esta janela transparente do Electron fica exatamente por cima com os controles.
   // (Embutir o mpv dentro de uma janela do Chromium não funciona no Windows: o compositor do
-  // Chromium cobre a imagem do vídeo.)
+  // Chromium cobre a imagem do vídeo.) No Windows as duas são ligadas pelo próprio sistema
+  // (win32.js), então se comportam como uma janela só: um botão na barra de tarefas, um item no
+  // Alt+Tab, sempre juntas na frente/atrás das outras janelas e movidas sem atraso.
   async open() {
     const s = this.ctx.settings();
     const disp = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
@@ -74,17 +84,30 @@ class PlayerSession {
     this.win.on('focus', () => this._raise());
     this.win.on('move', () => this._scheduleSync());
     this.win.on('resize', () => this._scheduleSync());
-    this.win.on('minimize', () => { if (this.ipc) this.ipc.safe('set_property', 'window-minimized', true); });
+    this.win.on('minimize', () => {
+      if (this.videoHwnd) W.setVisible(this.videoHwnd, false);
+      else if (this.ipc) this.ipc.safe('set_property', 'window-minimized', true);
+    });
     this.win.on('restore', () => {
+      this._filterAt = Date.now(); // dá um tempo antes de o auto-ajuste voltar a medir
+      if (this.videoHwnd) {
+        W.restoreTo(this.videoHwnd, this._physBounds());
+        this._lastGeom = this._geometry();
+        return;
+      }
       if (this.ipc) this.ipc.safe('set_property', 'window-minimized', false);
+      this._lastGeom = null;
       this._syncMpv();
       setTimeout(() => this._raise(), 120);
     });
     this.win.on('close', (e) => { if (!this.closed) { e.preventDefault(); this.close(); } });
+    // Se o Windows destruir os controles junto com a janela do vídeo (mpv caiu), encerra direito.
+    this.win.on('closed', () => { if (!this.closed) this._crashed(); });
     this._onDisplayChange = () => { if (!this.closed && this.mode !== 'window') this._setMode(this.mode); };
     screen.on('display-metrics-changed', this._onDisplayChange);
-    await this.win.loadFile(path.join(__dirname, '..', 'renderer', 'overlay.html'));
-    if (this.closed) return;
+    // A interface carrega enquanto o mpv inicia (o vídeo abre mais rápido).
+    const overlayLoaded = this.win.loadFile(path.join(__dirname, '..', 'renderer', 'overlay.html'))
+      .catch((e) => console.error('[player] overlay', e.message));
 
     this.psbId = powerSaveBlocker.start('prevent-display-sleep');
     this._registerMediaKeys();
@@ -97,6 +120,7 @@ class PlayerSession {
         await this._startMpv(level);
         started = true;
         this.level = level;
+        await overlayLoaded;
         if (level > 0) this._toast(level === 1 ? 'A placa NVIDIA não pôde ser selecionada diretamente; usando a GPU padrão do Windows.' : 'Modo de compatibilidade de vídeo ativado.', 'warn');
       } catch (err) {
         lastErr = err;
@@ -104,6 +128,7 @@ class PlayerSession {
         this._killMpv();
       }
     }
+    await overlayLoaded;
     if (this.closed || !this.win || this.win.isDestroyed()) return;
     this.win.show();
     this.win.focus();
@@ -167,16 +192,21 @@ class PlayerSession {
     const g = this._geometry();
     if (g === this._lastGeom) return;
     this._lastGeom = g;
+    if (this.videoHwnd && W.moveWindow(this.videoHwnd, this._physBounds())) return;
     this.ipc.safe('set_property', 'geometry', g);
   }
 
   _scheduleSync() {
+    // Ligadas pelo Windows: move o vídeo no mesmo instante que os controles.
+    if (this.videoHwnd) { this._syncMpv(); return; }
     if (this._syncTimer) return;
     this._syncTimer = setTimeout(() => { this._syncTimer = null; this._syncMpv(); }, 16);
   }
 
   // Coloca a janela do vídeo logo abaixo dos controles (sem deixá-las "sempre no topo").
+  // Com as janelas ligadas pelo Windows isso já acontece sozinho.
   async _raise() {
+    if (this.videoHwnd) return;
     if (this.closed || this._raising || !this.ipc || !this.ipc.connected || !this.win || this.win.isDestroyed()) return;
     this._raising = true;
     try {
@@ -217,7 +247,34 @@ class PlayerSession {
     return args;
   }
 
+  // Liga a janela do mpv à dos controles (só Windows). Se falhar, segue o modo antigo (sincronia via IPC).
+  async _linkWindows() {
+    if (!IS_WIN || !W.available() || !this.win || this.win.isDestroyed()) return;
+    let id = 0;
+    for (let i = 0; i < 50 && !this.closed && this.ipc && this.ipc.connected; i++) {
+      id = Number(await this.ipc.get('window-id').catch(() => 0)) || 0;
+      if (id) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!id || this.closed || this.win.isDestroyed()) return;
+    try {
+      if (W.link(W.hwndOf(this.win), id)) {
+        this.videoHwnd = id;
+        this._lastGeom = null;
+      }
+    } catch (e) {
+      console.error('[player] ligar janelas', e.message);
+    }
+  }
+
+  _unlinkWindows() {
+    if (!this.videoHwnd) return;
+    this.videoHwnd = null;
+    try { if (this.win && !this.win.isDestroyed()) W.unlink(W.hwndOf(this.win)); } catch (_) { /* ok */ }
+  }
+
   _killMpv() {
+    this._unlinkWindows();
     try { if (this.ipc) this.ipc.close(); } catch (_) { /* ok */ }
     this.ipc = null;
     const proc = this.mpv;
@@ -282,6 +339,7 @@ class PlayerSession {
     proc.on('error', (e) => { exited = true; stderr += e.message; });
     proc.on('exit', (code) => {
       exited = true;
+      if (this.mpv === proc) this._unlinkWindows();
       if (this.mpv === proc) this.mpv = null;
       if (ready && !this.closed) {
         this._toast(`O mecanismo de vídeo foi encerrado (código ${code}). ${stderr.split('\n').slice(-3).join(' ')}`, 'error');
@@ -298,9 +356,10 @@ class PlayerSession {
     ready = true;
     this.ipc.on('property', (name, value) => this._onProp(name, value));
     this.ipc.on('event', (ev, msg) => this._onEvent(ev, msg));
-    this.ipc.on('close', () => { if (!this.closed && this.mpv === proc) this.close(); });
+    this.ipc.on('close', () => { if (!this.closed && this.mpv === proc) this._crashed(); });
     for (const prop of OBSERVED) this.ipc.observe(prop);
     this._lastGeom = null;
+    await this._linkWindows();
     this._syncMpv();
   }
 
@@ -393,7 +452,7 @@ class PlayerSession {
   // ---------- eventos do mpv ----------
   _onProp(name, value) {
     this.state[name] = value;
-    this._send('player:prop', { name, value });
+    this._sendProp(name, value);
     // Só remonta o filtro quando a resolução de ORIGEM muda (a de saída muda por causa do próprio filtro
     // e causava um ciclo de destruir/recriar a IA a cada poucos segundos).
     if (name === 'video-dec-params' && value) {
@@ -403,6 +462,11 @@ class PlayerSession {
     if (name === 'eof-reached' && value === true) this._onEnd();
     // Se o usuário clicar na janela do vídeo, devolve o foco aos controles.
     if (name === 'focused' && value === true && this.win && !this.win.isDestroyed() && !this.win.isFocused()) this.win.focus();
+    // Algo de fora minimizou só o vídeo (Win+M, outro programa): os controles somem junto e ficariam
+    // sem botão na barra de tarefas. Minimiza o conjunto pelos controles, que têm o botão.
+    if (name === 'window-minimized' && value === true && this.videoHwnd && this.win && !this.win.isDestroyed() && !this.win.isMinimized()) {
+      this.win.minimize();
+    }
     if (name === 'volume' && typeof value === 'number') {
       const s = this.ctx.settings();
       if (Math.round(s.player.volume) !== Math.round(value)) { s.player.volume = Math.round(value); this.ctx.saveSettings(); }
@@ -588,8 +652,13 @@ class PlayerSession {
     if (this.closed || !this.video) return;
     const st = this.state;
     const eff = this._effective();
-    const drops = Number(st['frame-drop-count'] || 0) + Number(st['vo-delayed-frame-count'] || 0) * 0.5;
-    const idle = eff.motion !== 'rife' || !eff.aiAdaptive || st.pause || st['paused-for-cache'] || st.seeking || st['eof-reached'];
+    // Só quadros realmente perdidos. "Atrasados" (vo-delayed-frame-count) ficam em ~10/s com a IA a
+    // 60 FPS num monitor de alta taxa mesmo com a placa folgada (é efeito da sincronia com o monitor),
+    // e contá-los fazia o auto-ajuste desligar a IA em todo vídeo depois de ~40 s.
+    const drops = Number(st['frame-drop-count'] || 0);
+    // Minimizado/oculto o mpv não exibe quadros: isso não é lentidão da placa.
+    const hidden = !this.win || this.win.isDestroyed() || this.win.isMinimized() || !this.win.isVisible() || st['window-minimized'];
+    const idle = hidden || eff.motion !== 'rife' || !eff.aiAdaptive || st.pause || st['paused-for-cache'] || st.seeking || st['eof-reached'];
     if (idle || this._lastDrop == null || Date.now() - (this._filterAt || 0) < 15000 || (this._steps || 0) >= 3) {
       this._lastDrop = drops;
       this._bad = 0;
@@ -764,6 +833,24 @@ class PlayerSession {
     } catch (_) { /* janela fechando */ }
   }
 
+  // O mpv fechou sozinho: a janela dos controles some junto, então o aviso vai para a biblioteca.
+  _crashed() {
+    if (this.closed) return;
+    if (this.ctx.notice) this.ctx.notice('O vídeo foi interrompido porque o mecanismo de vídeo fechou inesperadamente. Tente abrir de novo.', 'error');
+    this.close();
+  }
+
+  _sendProp(name, value) {
+    if (!THROTTLED.has(name)) { this._send('player:prop', { name, value }); return; }
+    this._propQueue.set(name, value);
+    if (this._propTimer) return;
+    this._propTimer = setTimeout(() => {
+      this._propTimer = null;
+      for (const [n, v] of this._propQueue) this._send('player:prop', { name: n, value: v });
+      this._propQueue.clear();
+    }, THROTTLE_MS);
+  }
+
   _toast(text, level = 'info') { this._send('player:toast', { text, level }); }
 
   close() {
@@ -774,6 +861,9 @@ class PlayerSession {
     clearInterval(this._adaptTimer);
     clearTimeout(this._rifeTimer);
     clearTimeout(this._voCheck);
+    clearTimeout(this._propTimer);
+    // Solta os controles antes de o mpv fechar (o Windows destruiria a janela junto).
+    this._unlinkWindows();
     try { for (const k of ['MediaPlayPause', 'MediaNextTrack', 'MediaPreviousTrack', 'MediaStop']) globalShortcut.unregister(k); } catch (_) { /* ok */ }
     if (this.psbId != null) { try { powerSaveBlocker.stop(this.psbId); } catch (_) { /* ok */ } }
     const proc = this.mpv;
