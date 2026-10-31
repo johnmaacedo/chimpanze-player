@@ -1,7 +1,7 @@
 {
   "name": "chimpanze-player",
   "productName": "Chimpanzé Player",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Player de mídia local com interface estilo streaming, GPU, IA e torrent integrado.",
   "main": "src/main/main.js",
   "author": "João Victor de Macedo",
@@ -17,7 +17,8 @@
     "electron-builder": "^26.15.3"
   },
   "dependencies": {
-    "@ghostery/adblocker-electron": "^2.20.1"
+    "@ghostery/adblocker-electron": "^2.20.1",
+    "koffi": "^2.16.3"
   },
   "build": {
     "appId": "com.joaovictor.chimpanzeplayer",
@@ -31,7 +32,9 @@
     "files": [
       "src/**/*",
       "package.json",
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "!node_modules/koffi/build/koffi/!(win32_x64)/**",
+      "!node_modules/koffi/{src,vendor,doc}/**"
     ],
     "extraResources": [
       {
@@ -40,10 +43,15 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
       }
     ],
     "asarUnpack": [
-      "node_modules/@ghostery/**"
+      "node_modules/@ghostery/**",
+      "node_modules/koffi/**"
     ],
     "win": {
       "target": [
@@ -55,7 +63,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,

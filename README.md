@@ -1,4 +1,4 @@
-# Chimpanzé Player — código-fonte v1.4.0
+# Chimpanzé Player — código-fonte v1.5.0
 
 App Electron 44 (Windows). Ponto de entrada: `src/main/main.js`.
 
@@ -30,7 +30,9 @@ npm start          # modo desenvolvimento
 npm run dist       # gera o instalador NSIS em dist/
 ```
 
-## Estado atual (1.4.0)
+## Estado atual (1.5.0)
+- Player numa janela só: vídeo (mpv) e controles ligados pelo Windows (`src/main/win32.js`, biblioteca `koffi`).
+- IA de 60 FPS não desliga mais sozinha (auto-ajuste mede só quadros perdidos e ignora janela minimizada).
 - Fluidez: só "60 FPS (IA RTX)" (padrão) e "Original". RIFE v4.25 lite via vs-mlrt TensorRT, fp16, `_implementation=2`.
 - Metadados: IMDb (GraphQL `caching.graphql.imdb.com`, pt-BR) como principal; AniList/TVmaze/iTunes como apoio.
 - Primeira execução: configura o qBittorrent e prepara o motor RTX sozinho.
