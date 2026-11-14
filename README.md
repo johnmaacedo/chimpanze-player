@@ -80,7 +80,11 @@ Aponte o Chimpanzé Player para as suas pastas de filmes, séries e animes e ele
 O Chimpanzé Player é gratuito. Se ele te ajudou e você quiser apoiar o desenvolvimento, qualquer valor é bem-vindo.
 Chimpanzé Player is free. If you enjoy it and want to support its development, any amount helps.
 
-**Pix:** _em breve / coming soon_
+**Chave Pix / Pix key (aleatória / random):**
+
+```
+89209399-d0a0-44ba-98ce-794483f4f853
+```
 
 ---
 
