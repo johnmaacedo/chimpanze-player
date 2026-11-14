@@ -12,3 +12,7 @@ resources/vs/rtx/*.dll
 resources/vs/rtx/*.exe
 resources/vs/rtx/models/
 resources/elevate.exe
+
+# Notas internas de desenvolvimento
+CLAUDE.md
+.claude/
